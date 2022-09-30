@@ -223,3 +223,129 @@ class Sampler(keras.Model):
         '''
         '''
         return self.model(inputs)
+
+
+class VAE(keras.Model):
+    def __init__(self, r_loss_factor=1, summary=False, **kwargs):
+        super(VAE, self).__init__(**kwargs)
+
+        self.r_loss_factor = r_loss_factor
+
+        # Architecture
+        self.input_dim = INPUT_DIM
+        self.latent_dim = LATENT_DIM
+        self.encoder_conv_filters = [64, 64, 64, 64]
+        self.encoder_conv_kernel_size = [3, 3, 3, 3]
+        self.encoder_conv_strides = [2, 2, 2, 2]
+        self.n_layers_encoder = len(self.encoder_conv_filters)
+
+        self.decoder_conv_t_filters = [64, 64, 64, 3]
+        self.decoder_conv_t_kernel_size = [3, 3, 3, 3]
+        self.decoder_conv_t_strides = [2, 2, 2, 2]
+        self.n_layers_decoder = len(self.decoder_conv_t_filters)
+
+        self.use_batch_norm = True
+        self.use_dropout = True
+
+        self.total_loss_tracker = tf.keras.metrics.Mean(name="total_loss")
+        self.reconstruction_loss_tracker = tf.keras.metrics.Mean(name="reconstruction_loss")
+        self.kl_loss_tracker = tf.keras.metrics.Mean(name="kl_loss")
+        self.mae = tf.keras.losses.MeanAbsoluteError()
+
+        # Encoder
+        self.encoder_model = Encoder(input_dim=self.input_dim,
+                                     output_dim=self.latent_dim,
+                                     encoder_conv_filters=self.encoder_conv_filters,
+                                     encoder_conv_kernel_size=self.encoder_conv_kernel_size,
+                                     encoder_conv_strides=self.encoder_conv_strides,
+                                     use_batch_norm=self.use_batch_norm,
+                                     use_dropout=self.use_dropout)
+        self.encoder_conv_size = self.encoder_model.last_conv_size
+        if summary:
+            self.encoder_model.summary()
+
+        # Sampler
+        self.sampler_model = Sampler(latent_dim=self.latent_dim)
+        if summary:
+            self.sampler_model.summary()
+
+        # Decoder
+        self.decoder_model = Decoder(input_dim=self.latent_dim,
+                                     input_conv_dim=self.encoder_conv_size,
+                                     decoder_conv_t_filters=self.decoder_conv_t_filters,
+                                     decoder_conv_t_kernel_size=self.decoder_conv_t_kernel_size,
+                                     decoder_conv_t_strides=self.decoder_conv_t_strides,
+                                     use_batch_norm=self.use_batch_norm,
+                                     use_dropout=self.use_dropout)
+        if summary: self.decoder_model.summary()
+
+        self.built = True
+
+    @property
+    def metrics(self):
+        return [self.total_loss_tracker,
+                self.reconstruction_loss_tracker,
+                self.kl_loss_tracker, ]
+
+    @tf.function
+    def train_step(self, data):
+        '''
+        '''
+        with tf.GradientTape() as tape:
+            # predict
+            x = self.encoder_model(data)
+            z, z_mean, z_log_var = self.sampler_model(x)
+            pred = self.decoder_model(z)
+
+            # loss
+            r_loss = self.r_loss_factor * self.mae(data, pred)
+            kl_loss = -0.5 * (1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var))
+            kl_loss = tf.reduce_mean(tf.reduce_sum(kl_loss, axis=1))
+            total_loss = r_loss + kl_loss
+
+        # gradient
+        grads = tape.gradient(total_loss, self.trainable_weights)
+        # train step
+        self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
+
+        # compute progress
+        self.total_loss_tracker.update_state(total_loss)
+        self.reconstruction_loss_tracker.update_state(r_loss)
+        self.kl_loss_tracker.update_state(kl_loss)
+        return {"loss": self.total_loss_tracker.result(),
+                "reconstruction_loss": self.reconstruction_loss_tracker.result(),
+                "kl_loss": self.kl_loss_tracker.result(), }
+
+    @tf.function
+    def generate(self, z_sample):
+        '''
+        We use the sample of the N(0,I) directly as
+        input of the deterministic generator.
+        '''
+        return self.decoder_model(z_sample)
+
+    @tf.function
+    def codify(self, images):
+        '''
+        For an input image we obtain its particular distribution:
+        its mean, its variance (unvertaintly) and a sample z of such distribution.
+        '''
+        x = self.encoder_model.predict(images)
+        z, z_mean, z_log_var = self.sampler_model(x)
+        return z, z_mean, z_log_var
+
+    # implement the call method
+    @tf.function
+    def call(self, inputs, training=False):
+        '''
+        '''
+        tmp1, tmp2 = self.encoder_model.use_Dropout, self.decoder_model.use_Dropout
+        if not training:
+            self.encoder_model.use_Dropout, self.decoder_model.use_Dropout = False, False
+
+        x = self.encoder_model(inputs)
+        z, z_mean, z_log_var = self.sampler_model(x)
+        pred = self.decoder_model(z)
+
+        self.encoder_model.use_Dropout, self.decoder_model.use_Dropout = tmp1, tmp2
+        return pred
