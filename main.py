@@ -408,3 +408,40 @@ def plot_latent_space(vae, input_size=(28,28,1), n=30, figsize=15,  scale=1., la
 
 
 plot_latent_space(vae2, input_size=INPUT_DIM, n = 6, latents_start=[20,30], scale=3)
+images = dataset.take(4)
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(12, 6), tight_layout=True)
+
+for images in dataset.take(1):
+    for i in range(18):
+        ax = plt.subplot(3, 6, i + 1)
+        plt.imshow(images[i].numpy())
+        plt.axis('off')
+
+plt.savefig("figura3.png")
+
+print(images.shape)
+x = vae2.encoder_model.predict(images)
+z, z_mean, z_log_var= vae2.sampler_model(x)
+
+
+def plot_warping(z1, z2, n=(1, 5)):
+    n_trans = np.prod(n)
+
+    f, axarr = plt.subplots(n[0], n[1], figsize=(10, 6), tight_layout=True)
+    for i in range(n[0]):
+        for j in range(n[1]):
+            alpha = (i * n[1] + j) / (n_trans - 1)
+            z_new = (1 - alpha) * z1 + alpha * z2
+            z_new = tf.expand_dims(z_new, axis=0)
+            x_decoded = vae.generate(z_new)
+            img = x_decoded[0].numpy()
+            axarr[i, j].imshow(img)
+            axarr[i, j].set_title("{:0.3}".format(alpha))
+            axarr[i, j].axis('off')
+
+    plt.savefig("figura4.png")
+
+
+plot_warping(z1=z_mean[46], z2=z_mean[60], n=(3, 5))
