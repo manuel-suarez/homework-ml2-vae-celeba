@@ -128,3 +128,62 @@ class Encoder(keras.Model):
         '''
         return self.model(inputs)
 
+
+class Decoder(keras.Model):
+    def __init__(self, input_dim, input_conv_dim,
+                 decoder_conv_t_filters, decoder_conv_t_kernel_size, decoder_conv_t_strides,
+                 use_batch_norm=True, use_dropout=True, **kwargs):
+
+        '''
+        '''
+        super(Decoder, self).__init__(**kwargs)
+
+        self.input_dim = input_dim
+        self.input_conv_dim = input_conv_dim
+
+        self.decoder_conv_t_filters = decoder_conv_t_filters
+        self.decoder_conv_t_kernel_size = decoder_conv_t_kernel_size
+        self.decoder_conv_t_strides = decoder_conv_t_strides
+        self.n_layers_decoder = len(self.decoder_conv_t_filters)
+
+        self.use_batch_norm = use_batch_norm
+        self.use_dropout = use_dropout
+
+        self.model = self.decoder_model()
+        self.built = True
+
+    def get_config(self):
+        config = super(Decoder, self).get_config()
+        config.update({"units": self.units})
+        return config
+
+    def decoder_model(self):
+        '''
+        '''
+        decoder_input = layers.Input(shape=self.input_dim, name='decoder')
+        x = Dense(np.prod(self.input_conv_dim))(decoder_input)
+        x = Reshape(self.input_conv_dim)(x)
+
+        for i in range(self.n_layers_decoder):
+            x = Conv2DTranspose(filters=self.decoder_conv_t_filters[i],
+                                kernel_size=self.decoder_conv_t_kernel_size[i],
+                                strides=self.decoder_conv_t_strides[i],
+                                padding='same',
+                                name='decoder_conv_t_' + str(i))(x)
+            if i < self.n_layers_decoder - 1:
+
+                if self.use_batch_norm:
+                    x = BatchNormalization()(x)
+                x = LeakyReLU()(x)
+                if self.use_dropout:
+                    x = Dropout(rate=0.25)(x)
+            else:
+                x = Activation('sigmoid')(x)
+        decoder_output = x
+        model = keras.Model(decoder_input, decoder_output)
+        return model
+
+    def call(self, inputs):
+        '''
+        '''
+        return self.model(inputs)
