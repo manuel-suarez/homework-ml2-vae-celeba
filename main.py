@@ -352,3 +352,22 @@ class VAE(keras.Model):
 
 vae = VAE(r_loss_factor=R_LOSS_FACTOR, summary=True)
 vae.summary()
+
+vae.compile(optimizer=keras.optimizers.Adam())
+from tensorflow.keras.callbacks import ModelCheckpoint
+filepath = 'best_weight_model.h5'
+checkpoint = ModelCheckpoint(filepath=filepath,
+                             monitor='loss',
+                             verbose=1,
+                             save_best_only=True,
+                             save_weights_only=True,
+                             mode='min')
+callbacks = [checkpoint]
+
+vae.fit(dataset,
+        batch_size      = BATCH_SIZE,
+        epochs          = EPOCHS,
+        initial_epoch   = INITIAL_EPOCH,
+        steps_per_epoch = steps_per_epoch,
+        callbacks       = callbacks)
+vae.save_weights("model_vae_faces_1e4.h5")
