@@ -13,7 +13,7 @@ print(gpu_available)
 section    = 'vae'
 run_id     = '0001'
 data_name  = 'faces'
-RUN_FOLDER = 'run/{}/'.format(section)
+RUN_FOLDER = '../run/{}/'.format(section)
 RUN_FOLDER += '_'.join([run_id, data_name])
 
 if not os.path.exists(RUN_FOLDER):
