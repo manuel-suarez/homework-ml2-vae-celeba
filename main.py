@@ -349,3 +349,6 @@ class VAE(keras.Model):
 
         self.encoder_model.use_Dropout, self.decoder_model.use_Dropout = tmp1, tmp2
         return pred
+
+vae = VAE(r_loss_factor=R_LOSS_FACTOR, summary=True)
+vae.summary()
