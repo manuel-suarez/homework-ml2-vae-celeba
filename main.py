@@ -187,3 +187,39 @@ class Decoder(keras.Model):
         '''
         '''
         return self.model(inputs)
+
+
+class Sampler(keras.Model):
+    """Uses (z_mean, z_log_var) to sample z, the vector encoding a digit."""
+
+    def __init__(self, latent_dim, **kwargs):
+        super(Sampler, self).__init__(**kwargs)
+        self.latent_dim = latent_dim
+        self.model = self.sampler_model()
+        self.built = True
+
+    def get_config(self):
+        config = super(Sampler, self).get_config()
+        config.update({"units": self.units})
+        return config
+
+    def sampler_model(self):
+        '''
+        input_dim is a vector in the latent (codified) space
+        '''
+        input_data = layers.Input(shape=self.latent_dim)
+        z_mean = Dense(self.latent_dim, name="z_mean")(input_data)
+        z_log_var = Dense(self.latent_dim, name="z_log_var")(input_data)
+
+        self.batch = tf.shape(z_mean)[0]
+        self.dim = tf.shape(z_mean)[1]
+
+        epsilon = tf.keras.backend.random_normal(shape=(self.batch, self.dim))
+        z = z_mean + tf.exp(0.5 * z_log_var) * epsilon
+        model = keras.Model(input_data, [z, z_mean, z_log_var])
+        return model
+
+    def call(self, inputs):
+        '''
+        '''
+        return self.model(inputs)
