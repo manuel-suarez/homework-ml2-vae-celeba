@@ -40,3 +40,29 @@ steps_per_epoch = n_images//BATCH_SIZE
 
 print('num image files : ', n_images)
 print('steps per epoch : ', steps_per_epoch )
+
+AUTOTUNE = tf.data.AUTOTUNE
+dataset=tf.keras.utils.image_dataset_from_directory(directory  = DATA_FOLDER,
+                                                    labels     = None,
+                                                    batch_size = BATCH_SIZE,
+                                                    image_size = INPUT_DIM[:2],
+                                                    shuffle    = True,).repeat()
+
+dataset = dataset.prefetch(buffer_size=AUTOTUNE)
+
+normalization_layer = tf.keras.layers.experimental.preprocessing.Rescaling(1./255)
+dataset = dataset.map(lambda x: (normalization_layer(x)), num_parallel_calls=AUTOTUNE)
+
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(12, 6), tight_layout=True)
+
+for images in dataset.take(1):
+    for i in range(18):
+        ax = plt.subplot(3, 6, i + 1)
+        plt.imshow(images[i].numpy())
+        plt.axis('off')
+
+plt.savefig("figure_1.png")
+
+print(images.shape)
