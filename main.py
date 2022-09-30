@@ -471,3 +471,17 @@ def plot_label_clusters(xdata, ydata, limits=10):
 xdata = Z[:,0]
 ydata = Z[:,3]
 plot_label_clusters(xdata=xdata, ydata=ydata, limits=5)
+
+nrows, ncols = 4,6
+fig, axs = plt.subplots(nrows,ncols, figsize=(12,8), tight_layout=True)
+n_bins = 20
+
+for i in range(nrows):
+    for j in range(ncols):
+        idx = i*ncols+j
+        vals = z[:,idx].numpy()
+        axs[i,j].hist(vals, bins=n_bins)
+        axs[i,j].set_title("z[{}]".format(idx))
+
+fig.tight_layout()
+plt.savefig("figura6.png")
