@@ -445,3 +445,29 @@ def plot_warping(z1, z2, n=(1, 5)):
 
 
 plot_warping(z1=z_mean[46], z2=z_mean[60], n=(3, 5))
+for i in range(5):
+    images = dataset.take(1)
+    x = vae2.encoder_model.predict(images)
+    _, z_mean, _ = vae2.sampler_model(x)
+    if i:
+        Z = np.concatenate((Z, z_mean), axis=0)
+    else:
+        Z = z_mean
+
+Z = np.array(Z)
+print(Z.shape)
+def plot_label_clusters(xdata, ydata, limits=10):
+    # display a 2D plot of the digit classes in the latent space
+    plt.figure(figsize=(8,7))
+    plt.scatter(xdata,ydata, s=(2,),c='r')
+    plt.colorbar()
+    plt.xlabel("z[11]")
+    plt.ylabel("z[12]")
+    plt.xlim([-limits,limits])
+    plt.ylim([-limits,limits])
+    plt.savefig("figura5.png")
+
+
+xdata = Z[:,0]
+ydata = Z[:,3]
+plot_label_clusters(xdata=xdata, ydata=ydata, limits=5)
